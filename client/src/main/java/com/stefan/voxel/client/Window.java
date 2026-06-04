@@ -8,8 +8,8 @@ import org.lwjgl.system.MemoryUtil;
 
 public class Window {
     private final long handle;
-    private final int width;
-    private final int height;
+    private int width;
+    private int height;
     private final String title;
 
     public Window(int width, int height, String title) {
@@ -37,6 +37,12 @@ public class Window {
         if (handle == MemoryUtil.NULL) {
             throw new RuntimeException("Failed to create the GLFW window");
         }
+
+        GLFW.glfwSetFramebufferSizeCallback(handle, (window, w, h) -> {
+            this.width = w;
+            this.height = h;
+            org.lwjgl.opengl.GL11.glViewport(0, 0, w, h);
+        });
 
         GLFW.glfwMakeContextCurrent(handle);
         GLFW.glfwSwapInterval(1);

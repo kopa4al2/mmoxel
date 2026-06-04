@@ -18,7 +18,7 @@ public class ClientMain {
 
     private void init() {
         window = new Window(800, 600, "Voxel MMO");
-        screenManager.setScreen(new MenuScreen(screenManager, window.getWidth(), window.getHeight()));
+        screenManager.setScreen(new MenuScreen(screenManager, window));
     }
 
     private void loop() {
