@@ -7,6 +7,8 @@ import com.stefan.voxel.client.render.FPSCamera;
 import com.stefan.voxel.client.render.opengl.GuiRenderer;
 import com.stefan.voxel.client.render.opengl.OpenGLRenderer;
 import org.joml.Vector3f;
+import com.stefan.voxel.core.storage.WorldInfo;
+import com.stefan.voxel.core.storage.WorldStorage;
 import com.stefan.voxel.core.world.BlockType;
 import com.stefan.voxel.core.world.Structure;
 import com.stefan.voxel.core.world.World;
@@ -24,16 +26,29 @@ public class GameScreen implements Screen {
     private final Window window;
     private final FPSCamera camera;
     private final PlayerPhysics physics;
+    private final WorldStorage storage;
+    private final String worldName;
+    private final long seed;
+    private final boolean isNewWorld;
     private GuiRenderer crosshairRenderer;
     private Vector3i highlightedBlock;
 
     private boolean leftMouseWasPressed = false;
     private boolean rightMouseWasPressed = false;
 
-    private static final long WORLD_SEED = 42L;
-
-    public GameScreen(Window window) {
+    /**
+     * @param window    the game window
+     * @param storage   persistence backend (may be null for no saving)
+     * @param worldName name used for saving/loading
+     * @param seed      world generation seed (used only for new worlds)
+     * @param isNewWorld true = generate new world, false = load from storage
+     */
+    public GameScreen(Window window, WorldStorage storage, String worldName, long seed, boolean isNewWorld) {
         this.window = window;
+        this.storage = storage;
+        this.worldName = worldName;
+        this.seed = seed;
+        this.isNewWorld = isNewWorld;
         this.renderer = new OpenGLRenderer();
         this.world = new World();
         this.projection = new Matrix4f();
@@ -47,17 +62,33 @@ public class GameScreen implements Screen {
         renderer.init();
         crosshairRenderer = new GuiRenderer();
 
-        WorldGenerator generator = new WorldGenerator(WORLD_SEED);
-        System.out.println("Generating world with seed: " + generator.getSeed());
-        generator.generate(world, -32, -32, 64, 64);
-        System.out.println("World generation complete. Chunks: " + world.getChunks().size());
+        if (isNewWorld) {
+            // Generate a brand new world
+            WorldGenerator generator = new WorldGenerator(seed);
+            System.out.println("Generating world with seed: " + generator.getSeed());
+            generator.generate(world, -32, -32, 64, 64);
+            System.out.println("World generation complete. Chunks: " + world.getChunks().size());
 
-        // Spawn the player on top of the terrain at block center (0.5, ?, 0.5) in world coords
-        // Using 0.5 offset avoids spawning exactly on a block boundary where the AABB
-        // would overlap neighboring blocks and get stuck.
-        int highestBlock = world.getHighestBlock(0, 0);
-        float spawnY = (highestBlock >= 0) ? highestBlock + 1.01f : 50.0f;
-        physics.setPosition(0.5f, spawnY, 0.5f);
+            // Spawn the player on top of the terrain at block center
+            int highestBlock = world.getHighestBlock(0, 0);
+            float spawnY = (highestBlock >= 0) ? highestBlock + 1.01f : 50.0f;
+            physics.setPosition(0.5f, spawnY, 0.5f);
+        } else {
+            // Load existing world from storage
+            World loaded = storage.load(worldName);
+            if (loaded != null) {
+                // Copy chunks into our world
+                world.getChunks().putAll(loaded.getChunks());
+            }
+            WorldInfo info = storage.loadInfo(worldName);
+            if (info != null && (info.getPlayerX() != 0 || info.getPlayerY() != 0 || info.getPlayerZ() != 0)) {
+                physics.setPosition(info.getPlayerX(), info.getPlayerY(), info.getPlayerZ());
+            } else {
+                int highestBlock = world.getHighestBlock(0, 0);
+                float spawnY = (highestBlock >= 0) ? highestBlock + 1.01f : 50.0f;
+                physics.setPosition(0.5f, spawnY, 0.5f);
+            }
+        }
 
         // Set camera to eye position (visual/scaled space)
         float S = OpenGLRenderer.BLOCK_SCALE;
@@ -131,6 +162,7 @@ public class GameScreen implements Screen {
                     world.setBlock(pos.x, pos.y, pos.z, BlockType.AIR);
                 }
                 renderer.rebuildAllMeshes(world);
+                saveWorld();
             }
         }
 
@@ -140,11 +172,23 @@ public class GameScreen implements Screen {
             if (world.getBlock(adj.x, adj.y, adj.z) == BlockType.AIR) {
                 world.setBlock(adj.x, adj.y, adj.z, BlockType.GRASS);
                 renderer.rebuildAllMeshes(world);
+                saveWorld();
             }
         }
 
         leftMouseWasPressed = leftPressed;
         rightMouseWasPressed = rightPressed;
+    }
+
+    /**
+     * Persist the current world state to storage.
+     */
+    private void saveWorld() {
+        if (storage == null) return;
+        WorldInfo info = new WorldInfo(worldName, seed);
+        Vector3f pos = physics.getPosition();
+        info.setPlayerPosition(pos.x, pos.y, pos.z);
+        storage.save(info, world);
     }
 
     @Override
@@ -164,6 +208,8 @@ public class GameScreen implements Screen {
 
     @Override
     public void cleanup() {
+        // Auto-save on exit
+        saveWorld();
         renderer.cleanup();
         if (crosshairRenderer != null) crosshairRenderer.cleanup();
     }
