@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OpenGLRenderer implements Renderer {
+    /** Scale factor for blocks — increase to make blocks visually larger. */
+    public static final float BLOCK_SCALE = 5.0f;
+
     private Shader shader;
     private Shader highlightShader;
     private final List<ChunkMesh> chunkMeshes = new ArrayList<>();
@@ -77,7 +80,8 @@ public class OpenGLRenderer implements Renderer {
         for (ChunkMesh mesh : chunkMeshes) {
             Matrix4f model = new Matrix4f();
             Vector3i cpos = mesh.getChunk().getPosition();
-            model.translate(cpos.x * Chunk.SIZE, cpos.y * Chunk.SIZE, cpos.z * Chunk.SIZE);
+            model.translate(cpos.x * Chunk.SIZE * BLOCK_SCALE, cpos.y * Chunk.SIZE * BLOCK_SCALE, cpos.z * Chunk.SIZE * BLOCK_SCALE);
+            model.scale(BLOCK_SCALE);
             GL20.glUniformMatrix4fv(shader.getUniformLocation("model"), false, model.get(matrixBuffer));
             mesh.render();
         }
@@ -91,7 +95,7 @@ public class OpenGLRenderer implements Renderer {
         GL20.glUniformMatrix4fv(highlightShader.getUniformLocation("projection"), false, projection.get(matrixBuffer));
         GL20.glUniformMatrix4fv(highlightShader.getUniformLocation("view"), false, view.get(matrixBuffer));
 
-        Matrix4f model = new Matrix4f().translate(blockPos.x, blockPos.y, blockPos.z);
+        Matrix4f model = new Matrix4f().translate(blockPos.x * BLOCK_SCALE, blockPos.y * BLOCK_SCALE, blockPos.z * BLOCK_SCALE).scale(BLOCK_SCALE);
         GL20.glUniformMatrix4fv(highlightShader.getUniformLocation("model"), false, model.get(matrixBuffer));
 
         GL11.glLineWidth(2.0f);
@@ -103,12 +107,13 @@ public class OpenGLRenderer implements Renderer {
         highlightShader.unbind();
     }
 
-    private void rebuildAllMeshes(World world) {
+    public void rebuildAllMeshes(World world) {
         for (ChunkMesh mesh : chunkMeshes) mesh.cleanup();
         chunkMeshes.clear();
         for (Chunk chunk : world.getChunks().values()) {
             chunkMeshes.add(new ChunkMesh(chunk, world));
         }
+        lastWorld = world;
     }
 
     @Override

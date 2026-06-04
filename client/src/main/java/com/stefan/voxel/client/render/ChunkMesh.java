@@ -150,10 +150,17 @@ public class ChunkMesh {
 
     private float[] getColor(BlockType type) {
         return switch (type) {
-            case GRASS -> new float[]{0.2f, 0.7f, 0.15f};
-            case DIRT  -> new float[]{0.55f, 0.35f, 0.15f};
-            case STONE -> new float[]{0.5f, 0.5f, 0.5f};
-            default    -> new float[]{1f, 1f, 1f};
+            case GRASS   -> new float[]{0.2f, 0.7f, 0.15f};
+            case DIRT    -> new float[]{0.55f, 0.35f, 0.15f};
+            case STONE   -> new float[]{0.5f, 0.5f, 0.5f};
+            case SAND    -> new float[]{0.85f, 0.8f, 0.55f};
+            case WATER   -> new float[]{0.2f, 0.4f, 0.8f};
+            case BEDROCK -> new float[]{0.15f, 0.15f, 0.15f};
+            case SNOW    -> new float[]{0.95f, 0.95f, 0.98f};
+            case GRAVEL  -> new float[]{0.6f, 0.55f, 0.5f};
+            case LOG     -> new float[]{0.4f, 0.25f, 0.1f};
+            case LEAVES  -> new float[]{0.1f, 0.5f, 0.1f};
+            default      -> new float[]{1f, 1f, 1f};
         };
     }
 
